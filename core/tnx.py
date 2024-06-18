@@ -7,7 +7,6 @@ import os
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
-# url = "https://mainnet.infura.io/v3/bbba4fc3c0b7452ea2e46a6316da1321"
 url = "https://sepolia.infura.io/v3/793c20d604d74e1f9f6aa2a8d249f226"
 
 w3 = Web3(Web3.HTTPProvider(url))
