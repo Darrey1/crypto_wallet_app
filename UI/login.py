@@ -6,6 +6,7 @@ import os
 from .dashboard import dashboard_page
 script_directory = os.path.dirname(os.path.abspath(__file__))
 path = os.path.join(script_directory, "img")
+
 class Login:
     def __init__(self,wind):
         self.main_root = wind

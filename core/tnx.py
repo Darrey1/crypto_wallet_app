@@ -7,10 +7,100 @@ import os
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
-url = "https://sepolia.infura.io/v3/793c20d604d74e1f9f6aa2a8d249f226"
+url = "https://sepolia.base.org"
+
+erc20_abi = [
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "name",
+        "outputs": [
+            {
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [
+            {
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": False,
+        "inputs": [
+            {
+                "name": "_to",
+                "type": "address"
+            },
+            {
+                "name": "_value",
+                "type": "uint256"
+            }
+        ],
+        "name": "transfer",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [
+            {
+                "name": "_owner",
+                "type": "address"
+            }
+        ],
+        "name": "balanceOf",
+        "outputs": [
+            {
+                "name": "balance",
+                "type": "uint256"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
+
 
 w3 = Web3(Web3.HTTPProvider(url))
-
+token_address = w3.to_checksum_address("0x59e8f13f80b405992e6db077b255a11cdba588ab")
+token_contract = w3.eth.contract(address=token_address, abi = erc20_abi)
+decimals = token_contract.functions.decimals().call()
 
 
 def balance(address):
@@ -34,6 +124,18 @@ def create_wallet():
         json.dump(data,file)
     return data
 
+
+def get_wallet():
+    try:
+        wallet_path = os.path.join(script_directory, "wallet.json")
+        with open(wallet_path) as wb:
+            data = json.load(wb)
+        
+        wallet = w3.eth.account.from_key(data['private_key'])
+        return wallet
+    
+    except Exception as e:
+        return None
 
 def link_wallet(private_key):
     try:
@@ -95,3 +197,31 @@ def send_tnx(to_address: str,from_address,pk, value=0.0001):  #
     except Exception as arr:
         print(arr)
         return None
+
+
+def send_token(to_ : str, amount : float | int, from_address : str, private_key : str):
+    
+    amount_ = int(amount  * 10**decimals)
+    address = w3.to_checksum_address(from_address)
+    account = w3.eth.account.from_key(private_key)
+    tx_params = token_contract.functions.transfer(to_, amount_).build_transaction(
+        {
+            "from": address,
+            "nonce": w3.eth.get_transaction_count(address),
+            "gasPrice": w3.eth.gas_price,
+            "value": 0,
+        }
+    )
+    
+    gas = w3.eth.estimate_gas(tx_params)
+    print(f"Gas is {gas}")
+    tx_params["gas"] = gas
+    signed_tx =  account.sign_transaction(tx_params)
+    hash  = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    tx = w3.eth.wait_for_transaction_receipt(hash)
+    print(f"transaction receipt {tx}")
+    if not tx:
+        return None 
+
+    if tx.get('status') == 1:
+        return hash.hex()

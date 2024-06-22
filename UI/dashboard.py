@@ -44,7 +44,7 @@ def upload_csv():
               console_log(f"Max of {len(df)} entry found inside the csv file!")
               data = df.iterrows()  
             else:
-              console_log(f"Failed to upload CSV file. Error")
+              console_log(f"Empty csv file")
             # messagebox.showinfo("Upload CSV", "CSV file uploaded successfully.")
         except Exception as e:
             console_log(f"Failed to upload CSV file. Error: {e}")
@@ -54,7 +54,7 @@ def upload_csv():
 
 def start_transactions():
     global data
-    
+
     try:
         if data:
             console_log("Starting transactions...")
@@ -66,7 +66,7 @@ def start_transactions():
                 amount = float(row['amount'])
                 console_log(" ")
                 console_log(f"Transaction processing for...\nAddress: {to_address}\nAmount: {amount}")
-                tnx = send_tnx(to_address,from_address,pk,amount)
+                tnx =  send_token(to_address, amount, from_address, pk)
                 if tnx:
                   status = 'successful'
                   console_log(f"Transactions completed.for address{to_address}!. status: {status}")
@@ -81,6 +81,7 @@ def start_transactions():
             console_log("Csv file not uploaded!")
         
     except Exception as e:
+        print(e)
         console_log(f"Failed to process transactions. Error: {e}")
         
         
