@@ -6,11 +6,17 @@ import time
 from PIL import Image,ImageTk
 import os
 import json
-from core.tnx import *
+# from core.tnx import 
+from core.tnx import (
+    balance,
+    send_token,
+    create_wallet
+)
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 path = os.path.join(script_directory, "img")
 data = None
+
 
 # def on_enter(e):
 #     e.widget['background'] = 'lightblue'
@@ -52,30 +58,33 @@ def upload_csv():
             
             
 
-def start_transactions():
+def start_transactions(token_address):
     global data
-
+    
     try:
         if data:
-            console_log("Starting transactions...")
-            console_log(" ")
-            for index, row in data:
-                from_address = wallet['address']
-                pk = wallet['private']
-                to_address = row['address']
-                amount = float(row['amount'])
+            print(f'the token address is {token_address}')
+            if token_address != '' and str(token_address).lower() != str('Enter token address here...').lower():
+                console_log("Starting transactions...")
                 console_log(" ")
-                console_log(f"Transaction processing for...\nAddress: {to_address}\nAmount: {amount}")
-                tnx =  send_token(to_address, amount, from_address, pk)
-                if tnx:
-                  status = 'successful'
-                  console_log(f"Transactions completed.for address{to_address}!. status: {status}")
-                  console_log(" ")
-                else:
-                  status = 'failed!'
-                  console_log(f"Transactions aborted! for address{to_address},check your balance and try again. status: {status}")
-                  console_log(" ")
-                    
+                for index, row in data:
+                    from_address = wallet['address']
+                    pk = wallet['private']
+                    to_address = row['address']
+                    amount = float(row['amount'])
+                    console_log(" ")
+                    console_log(f"Transaction processing for...\nAddress: {to_address}\nAmount: {amount}")
+                    tnx =  send_token(to_address, amount, from_address, pk,token_address)
+                    if tnx:
+                        status = 'successful'
+                        console_log(f"Transactions completed.for address{to_address}!. status: {status}")
+                        console_log(" ")
+                    else:
+                        status = 'failed!'
+                        console_log(f"Transactions aborted! for address{to_address},check your balance and try again. status: {status}")
+                        console_log(" ")
+            else:
+                console_log("Please enter your token address!")
                 
         else:
             console_log("Csv file not uploaded!")
@@ -151,7 +160,8 @@ def account_generation():
             clear_btn.pack(pady=10,padx=2)
             
     except Exception as err:
-        console_log(err)
+        print(err)
+        console_log(f"error occur:{err}")
         
         
 
@@ -159,6 +169,27 @@ def account_generation():
 def exit():
      root.destroy()
      root.quit()
+     
+     
+def set_placeholder(entry, placeholder_text):
+    placeholder_font = ("arial", 11, "normal")
+    normal_font = ("arial", 11) 
+
+    entry.insert(0, placeholder_text)
+    entry.config(foreground='grey', font=placeholder_font)
+
+    def on_focus_in(event):
+        if entry.get() == placeholder_text:
+            entry.delete(0, tk.END)
+            entry.config(foreground='black', font=normal_font)
+
+    def on_focus_out(event):
+        if not entry.get():
+            entry.insert(0, placeholder_text)
+            entry.config(foreground='grey', font=placeholder_font)
+
+    entry.bind("<FocusIn>", on_focus_in)
+    entry.bind("<FocusOut>", on_focus_out)
 
 
 
@@ -189,6 +220,10 @@ def dashboard_page():
 
     left_frame = ttk.Frame(root, padding="10")
     left_frame.place(relx=0.02, rely=0.05, relwidth=0.36, relheight=0.9)
+    token_address=ttk.Entry(left_frame,font=("arial",17,"bold"))
+    token_address.pack(pady=10, fill=tk.X)
+    print(token_address.get())
+    set_placeholder(token_address, "Enter token address here...")
     connect_button = tk.Button(left_frame, text="Wallet details", command=wallet_details)
     connect_button.pack(pady=10, fill=tk.X)
     # connect_button.bind("<Enter>", on_enter)
@@ -196,7 +231,7 @@ def dashboard_page():
 
     upload_button = tk.Button(left_frame, text="Upload CSV", command=upload_csv)
     upload_button.pack(pady=10, fill=tk.X)
-    start_button = tk.Button(left_frame, text="Start Transactions", command=start_transactions)
+    start_button = tk.Button(left_frame, text="Start Transactions", command=lambda:start_transactions(token_address.get()))
     start_button.pack(pady=10, fill=tk.X)
     # start_button.bind("<Enter>", on_enter)
     # start_button.bind("<Leave>", on_leave)

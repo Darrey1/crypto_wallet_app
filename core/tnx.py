@@ -6,6 +6,7 @@ from mnemonic import Mnemonic
 import os
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
+wallet_path = os.path.join(script_directory, "wallet.json")
 
 url = "https://sepolia.base.org"
 
@@ -98,9 +99,19 @@ erc20_abi = [
 
 
 w3 = Web3(Web3.HTTPProvider(url))
-token_address = w3.to_checksum_address("0x59e8f13f80b405992e6db077b255a11cdba588ab")
-token_contract = w3.eth.contract(address=token_address, abi = erc20_abi)
-decimals = token_contract.functions.decimals().call()
+
+
+# if os.path.exists(wallet_path):
+#    with open(wallet_path) as file:
+#        json_data = json.load(file)
+#        print(json_data)
+#        contract_address = json_data['contract_address']
+# else:
+#     contract_address = '0x59e8f13f80b405992e6db077b255a11cdba588ab'
+       
+# # token_address = w3.to_checksum_address(contract_address)
+# # token_contract = w3.eth.contract(address=token_address, abi = erc20_abi)
+# # decimals = token_contract.functions.decimals().call()
 
 
 def balance(address):
@@ -110,7 +121,6 @@ def balance(address):
 
 
 def create_wallet():
-    wallet_path = os.path.join(script_directory, "wallet.json")
     mnemo = Mnemonic("english")
     words = mnemo.generate(strength=256)
     w3.eth.account.enable_unaudited_hdwallet_features()
@@ -197,10 +207,15 @@ def send_tnx(to_address: str,from_address,pk, value=0.0001):  #
     except Exception as arr:
         print(arr)
         return None
-
-
-def send_token(to_ : str, amount : float | int, from_address : str, private_key : str):
     
+    
+    
+
+
+def send_token(to_ : str, amount : float | int, from_address : str, private_key : str,contract_address:str):
+    token_address = w3.to_checksum_address(contract_address)
+    token_contract = w3.eth.contract(address=token_address, abi = erc20_abi)
+    decimals = token_contract.functions.decimals().call()
     amount_ = int(amount  * 10**decimals)
     address = w3.to_checksum_address(from_address)
     account = w3.eth.account.from_key(private_key)
