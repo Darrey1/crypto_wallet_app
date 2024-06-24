@@ -2,10 +2,23 @@ from tkinter import*
 from tkinter import ttk
 from PIL import Image,ImageTk
 from tkinter import messagebox
+import sys
 import os
 from .dashboard import dashboard_page
 script_directory = os.path.dirname(os.path.abspath(__file__))
-path = os.path.join(script_directory, "img")
+# path = os.path.join(script_directory, "img")
+
+
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for both dev and PyInstaller bundle """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 
 class Login:
     def __init__(self,wind):
@@ -13,6 +26,7 @@ class Login:
         self.root=wind
         self.root.title("Crypto Wallet App")
         self.root.geometry("900x600") 
+        path = resource_path("UI/img")
         self.bg=Image.open(os.path.join(path, "bg.jpg"))
         self.bg=ImageTk.PhotoImage(file=os.path.join(path, "bg.jpg"))
         
@@ -62,12 +76,10 @@ class Login:
         loginbtn.place(x=90,y=420,width=50,height=20)
 
     def show_password(self):
-        # Toggle password visibility
         if self.txtpwd['show'] == "*":
             self.txtpwd.config(show="")
         else:
             self.txtpwd.config(show="*")
-    #  THis function is for open register window
     def reg(self):
         self.new_window=Toplevel(self.root)
         # self.app=Register(self.new_window)
@@ -78,7 +90,7 @@ class Login:
         print(pwd)
         if (email=="" or pwd==""):
             messagebox.showerror("Error","All Field Required!")
-        elif str(email).capitalize() =='Pythondev' and pwd == '1234':
+        elif str(email).capitalize() =='Admin' and pwd == '1234':
             # self.root.withdraw()
             self.root.destroy()
             dashboard_page()

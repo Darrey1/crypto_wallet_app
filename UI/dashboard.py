@@ -6,12 +6,263 @@ import time
 from PIL import Image,ImageTk
 import os
 import json
-# from core.tnx import 
-from core.tnx import (
-    balance,
-    send_token,
-    create_wallet
-)
+import sys
+from web3 import Web3
+from eth_account import Account
+import json
+import asyncio
+from mnemonic import Mnemonic
+import os
+import sys
+
+
+
+
+
+
+url = "https://sepolia.base.org"
+
+erc20_abi = [
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "name",
+        "outputs": [
+            {
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [
+            {
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": False,
+        "inputs": [
+            {
+                "name": "_to",
+                "type": "address"
+            },
+            {
+                "name": "_value",
+                "type": "uint256"
+            }
+        ],
+        "name": "transfer",
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [
+            {
+                "name": "_owner",
+                "type": "address"
+            }
+        ],
+        "name": "balanceOf",
+        "outputs": [
+            {
+                "name": "balance",
+                "type": "uint256"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
+
+
+w3 = Web3(Web3.HTTPProvider(url))
+
+
+
+
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for both dev and PyInstaller bundle """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
+def balance(address):
+    get_balance = w3.eth.get_balance(w3.to_checksum_address(address))
+    balance = w3.from_wei(get_balance, "ether")
+    return format(float(balance),'.3f')
+
+
+def create_wallet():
+    account = w3.eth.account.create()
+    private_key = account._private_key.hex()
+    address = account.address
+    data = {
+        "private": private_key,
+        "address": address
+    }
+    wallet_path = resource_path("core/wallet.json")
+    os.makedirs(os.path.dirname(wallet_path), exist_ok=True)
+    with open(wallet_path, mode='w') as file:
+        json.dump(data,file)
+    return data
+
+
+def get_wallet():
+    try:
+        wallet_path = resource_path("core/wallet.json")
+        with open(wallet_path) as wb:
+            data = json.load(wb)
+        
+        wallet = w3.eth.account.from_key(data['private_key'])
+        return wallet
+    
+    except Exception as e:
+        return None
+
+def link_wallet(private_key):
+    try:
+        account = w3.eth.account.from_key(private_key)
+        address = w3.to_checksum_address(account.address)
+        print("Public Address:", account.address)
+        data = {
+            "private": private_key,
+            "address": address,
+            "mnemonic": "is a link account, no mnemonic words",
+        }
+        return True
+    except Exception as arr:
+        print(arr)
+        return False
+
+
+# bulding the transaction
+def build_tnx(To: str, value: float, From: str, w3=w3):
+    transaction = {
+        "from": From,  # w3.to_checksum_address(From),
+        "to": w3.to_checksum_address(To),
+        "value": w3.to_wei(value, "ether"),
+        "nonce": w3.eth.get_transaction_count(From),
+        "gas": 21000,
+        "maxFeePerGas": w3.to_wei(20, "gwei"),
+        "maxPriorityFeePerGas": w3.to_wei(10, "gwei"),
+        "chainId": int(w3.net.version),
+    }
+    return transaction
+
+
+# signing the transaction
+def sign_tnx(trnx, private_key: str):
+    sign_tx = w3.eth.account.sign_transaction(trnx, private_key)
+    return sign_tx
+
+
+# sending a transaction
+def send_tnx(to_address: str,from_address,pk, value=0.0001):  #
+    try:
+
+        # with open(username+".json","r") as file:
+        #    data = json.load(file)
+        address = w3.to_checksum_address(from_address)
+        transaction = build_tnx(to_address, value, address)
+        sign_tx = sign_tnx(transaction, pk)
+        tx_hash = w3.eth.send_raw_transaction(sign_tx.rawTransaction)
+        tx = w3.eth.wait_for_transaction_receipt(tx_hash)
+        print(f"transaction receit {tx}")
+        if tx is None:
+            return None
+        else:
+            if tx.status == 1:
+
+                return tx_hash.hex()
+            else:
+                return None
+    except Exception as arr:
+        print(arr)
+        return None
+    
+    
+    
+
+
+def send_token(to_ : str, amount : float | int, from_address : str, private_key : str,contract_address:str):
+    token_address = w3.to_checksum_address(contract_address)
+    token_contract = w3.eth.contract(address=token_address, abi = erc20_abi)
+    decimals = token_contract.functions.decimals().call()
+    amount_ = int(amount  * 10**decimals)
+    address = w3.to_checksum_address(from_address)
+    account = w3.eth.account.from_key(private_key)
+    tx_params = token_contract.functions.transfer(to_, amount_).build_transaction(
+        {
+            "from": address,
+            "nonce": w3.eth.get_transaction_count(address),
+            "gasPrice": w3.eth.gas_price,
+            "value": 0,
+        }
+    )
+    
+    gas = w3.eth.estimate_gas(tx_params)
+    print(f"Gas is {gas}")
+    tx_params["gas"] = gas
+    signed_tx =  account.sign_transaction(tx_params)
+    hash  = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+    tx = w3.eth.wait_for_transaction_receipt(hash)
+    print(f"transaction receipt {tx}")
+    if not tx:
+        return None 
+
+    if tx.get('status') == 1:
+        return hash.hex()
+
+
+
+
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for both dev and PyInstaller bundle """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 path = os.path.join(script_directory, "img")
@@ -41,7 +292,8 @@ def wallet_details():
 
 def upload_csv():
     global data
-    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+    file_path = filedialog.askopenfilename(filetypes=[("csv file", "*.csv")])
+
     if file_path:
         try:
             df = pd.read_csv(file_path)
@@ -64,7 +316,7 @@ def start_transactions(token_address):
     try:
         if data:
             print(f'the token address is {token_address}')
-            if token_address != '' and str(token_address).lower() != str('Enter token address here...').lower():
+            if token_address != '' and str(token_address).lower() != str('Enter contract address here...').lower():
                 console_log("Starting transactions...")
                 console_log(" ")
                 for index, row in data:
@@ -84,7 +336,7 @@ def start_transactions(token_address):
                         console_log(f"Transactions aborted! for address{to_address},check your balance and try again. status: {status}")
                         console_log(" ")
             else:
-                console_log("Please enter your token address!")
+                console_log("Please enter your contract address!")
                 
         else:
             console_log("Csv file not uploaded!")
@@ -135,15 +387,34 @@ def clear_console():
 def account_generation():
     global clear_btn,wallet
     try:
-        home_dir = os.getcwd()
-        wallet_path = os.path.join(home_dir, "core/wallet.json")
+        # home_dir = os.getcwd()
+        # wallet_path = os.path.join(home_dir, "core/wallet.json")
+        wallet_path = resource_path("core/wallet.json")
         if os.path.exists(wallet_path):
             with open(wallet_path, mode='r') as file:
                 wallet = json.load(file)
             if wallet:
                 address = wallet['address']
                 console_log(f"Address:{address}")
+            else:
+                console_log("New user,please wait while we are generating new wallet...")
+                wallet = create_wallet()
+                console_log("Wallet generating successful...")
+                console_log("please write down your wallet details and keep it safe")
+                console_log(" ")
+                console_log(f"private key:{wallet['private']}")
+                console_log(" ")
+                console_log(f"address:{wallet['address']}")
+                console_log(" ")
+                console_log("Click the 'clear' button to clear the screen when done!")
+                clear_btn = tk.Button(left_frame, text="Clear", command=clear_console)
+                clear_btn.pack(pady=10,padx=2)
         else:
+            os.makedirs(os.path.dirname(wallet_path), exist_ok=True)
+            empty_data = {}
+            with open(wallet_path, 'w') as f:
+                 json.dump(empty_data, f)
+            
             console_log("New user,please wait while we are generating new wallet...")
             wallet = create_wallet()
             console_log("Wallet generating successful...")
@@ -152,8 +423,6 @@ def account_generation():
             console_log(f"private key:{wallet['private']}")
             console_log(" ")
             console_log(f"address:{wallet['address']}")
-            console_log(" ")
-            console_log(f"mnemonic:{wallet['mnemonic']}")
             console_log(" ")
             console_log("Click the 'clear' button to clear the screen when done!")
             clear_btn = tk.Button(left_frame, text="Clear", command=clear_console)
@@ -223,7 +492,7 @@ def dashboard_page():
     token_address=ttk.Entry(left_frame,font=("arial",17,"bold"))
     token_address.pack(pady=10, fill=tk.X)
     print(token_address.get())
-    set_placeholder(token_address, "Enter token address here...")
+    set_placeholder(token_address, "Enter contract address here...")
     connect_button = tk.Button(left_frame, text="Wallet details", command=wallet_details)
     connect_button.pack(pady=10, fill=tk.X)
     # connect_button.bind("<Enter>", on_enter)
