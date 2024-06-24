@@ -14,6 +14,7 @@ import asyncio
 from mnemonic import Mnemonic
 import os
 import sys
+from eth_typing import ChecksumAddress
 
 
 
@@ -219,14 +220,19 @@ def send_tnx(to_address: str,from_address,pk, value=0.0001):  #
         print(arr)
         return None
     
-    
+tokens_decimals : dict[ChecksumAddress, int] = {}  
     
 
 
-def send_token(to_ : str, amount : float | int, from_address : str, private_key : str,contract_address:str):
+def send_token(to_ : str, amount : float | int, from_address : str, private_key : str, contract_address:str):
     token_address = w3.to_checksum_address(contract_address)
     token_contract = w3.eth.contract(address=token_address, abi = erc20_abi)
-    decimals = token_contract.functions.decimals().call()
+    decimals = tokens_decimals.get(token_address)
+    
+    if not decimals:
+        decimals = int(token_contract.functions.decimals().call())
+        tokens_decimals[token_address] = decimals
+        
     amount_ = int(amount  * 10**decimals)
     address = w3.to_checksum_address(from_address)
     account = w3.eth.account.from_key(private_key)
